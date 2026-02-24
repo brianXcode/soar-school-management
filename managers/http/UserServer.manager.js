@@ -18,20 +18,19 @@ module.exports = class UserServer {
 
     /** server configs */
     run(){
-        /** Security headers - CSP relaxed to allow Swagger UI */
+        /** Security headers - CSP configured to allow Swagger UI */
         app.use(helmet({
-            strictTransportSecurity: false, // Don't force HTTPS
+            strictTransportSecurity: false,
             contentSecurityPolicy: {
                 directives: {
-                    defaultSrc:     ["'self'"],
-                    scriptSrc:      ["'self'", "'unsafe-inline'"],
-                    scriptSrcAttr:  ["'unsafe-inline'"],
-                    styleSrc:       ["'self'", "'unsafe-inline'", 'https:'],
-                    imgSrc:         ["'self'", 'data:', 'https:'],
-                    connectSrc:     ["'self'"],
-                    fontSrc:        ["'self'", 'https:', 'data:'],
-                    objectSrc:      ["'none'"],
-                    // No upgradeInsecureRequests - allow plain HTTP
+                    defaultSrc:    ["'self'", 'https:'],
+                    scriptSrc:     ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+                    scriptSrcAttr: ["'unsafe-inline'"],
+                    styleSrc:      ["'self'", "'unsafe-inline'", 'https:'],
+                    imgSrc:        ["'self'", 'data:', 'https:'],
+                    connectSrc:    ["'self'", 'https:'],
+                    fontSrc:       ["'self'", 'https:', 'data:'],
+                    objectSrc:     ["'none'"],
                 },
             },
             crossOriginOpenerPolicy: false,
