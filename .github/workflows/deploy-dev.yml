@@ -3,6 +3,7 @@ name: Deploy to AWS EC2 Development
 on:
   push:
     branches:
+      - development
       - main
   workflow_dispatch: # Allow manual trigger
 
@@ -41,7 +42,13 @@ jobs:
       - name: Copy files to EC2
         run: |
           # Create tarball of application (exclude .git and node_modules)
-          tar --exclude='.git' --exclude='node_modules' --exclude='*.pem' -czf app.tar.gz .
+          tar --exclude='.git' \
+              --exclude='node_modules' \
+              --exclude='*.pem' \
+              --exclude='.github' \
+              --exclude='*.tar.gz' \
+              --warning=no-file-changed \
+              -czf app.tar.gz .
 
           # Copy to EC2
           scp -i private_key.pem app.tar.gz ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/
