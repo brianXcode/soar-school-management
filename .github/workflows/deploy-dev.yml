@@ -55,44 +55,21 @@ jobs:
 
       - name: Copy files to EC2
         run: |
-          # Create tarball of application (exclude .git and node_modules)
-          echo "Creating application archive..."
-          tar --exclude='.git' \
-              --exclude='node_modules' \
-              --exclude='*.pem' \
-              --exclude='.github' \
-              --exclude='*.tar.gz' \
-              --warning=no-file-changed \
-              -czf app.tar.gz .
+          echo "Syncing files to EC2..."
 
-          echo "Archive created: $(ls -lh app.tar.gz)"
+          # Use rsync for efficient file transfer
+          rsync -avz --delete \
+            -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='*.pem' \
+            --exclude='.github' \
+            --exclude='*.tar.gz' \
+            --exclude='logs/' \
+            --exclude='.env' \
+            ./ ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:~/soar-school-management/
 
-          # Copy to EC2
-          echo "Copying archive to EC2..."
-          scp -i private_key.pem \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=30 \
-              app.tar.gz ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/
-
-          # Extract on EC2
-          echo "Extracting files on EC2..."
-          ssh -i private_key.pem \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=30 \
-              ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
-            set -e
-            # Create app directory if not exists
-            mkdir -p ~/soar-school-management
-
-            # Extract files
-            cd ~/soar-school-management
-            tar -xzf /tmp/app.tar.gz
-            rm /tmp/app.tar.gz
-
-            echo "Files copied successfully"
-          ENDSSH
+          echo "Files synced successfully"
 
       - name: Configure environment and deploy
         run: |
@@ -180,7 +157,7 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          rm -f private_key.pem app.tar.gz
+          rm -f private_key.pem
 
       - name: Deployment summary
         if: always()
