@@ -20,6 +20,7 @@ module.exports = class UserServer {
     run(){
         /** Security headers - CSP relaxed to allow Swagger UI */
         app.use(helmet({
+            strictTransportSecurity: false, // Don't force HTTPS
             contentSecurityPolicy: {
                 directives: {
                     defaultSrc:     ["'self'"],
@@ -30,7 +31,7 @@ module.exports = class UserServer {
                     connectSrc:     ["'self'"],
                     fontSrc:        ["'self'", 'https:', 'data:'],
                     objectSrc:      ["'none'"],
-                    upgradeInsecureRequests: [],
+                    // No upgradeInsecureRequests - allow plain HTTP
                 },
             },
             crossOriginOpenerPolicy: false,
