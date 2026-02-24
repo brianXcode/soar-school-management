@@ -143,11 +143,11 @@ jobs:
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
 
-            if curl -f -s -k https://${{ env.EC2_HOST }}/health > /dev/null 2>&1; then
+            if curl -f -s http://${{ env.EC2_HOST }}:443/health > /dev/null 2>&1; then
               echo "Health check passed!"
               echo "Deployment successful!"
-              echo "API: https://${{ env.EC2_HOST }}/api/"
-              echo "Swagger: https://${{ env.EC2_HOST }}/api-docs"
+              echo "API: http://${{ env.EC2_HOST }}:443/api/"
+              echo "Swagger: http://${{ env.EC2_HOST }}:443/api-docs"
               exit 0
             fi
 
