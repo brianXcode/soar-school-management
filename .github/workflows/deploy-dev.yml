@@ -127,6 +127,10 @@ jobs:
             # Show recent logs
             echo "Recent application logs:"
             docker compose logs --tail=50 app
+
+            # Reload nginx to ensure it's running as reverse proxy
+            sudo systemctl reload nginx || sudo systemctl restart nginx
+            echo "Nginx reloaded"
           ENDSSH
 
       - name: Health check
@@ -139,11 +143,11 @@ jobs:
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
 
-            if curl -f -s http://${{ env.EC2_HOST }}/health > /dev/null 2>&1; then
+            if curl -f -s -k https://${{ env.EC2_HOST }}/health > /dev/null 2>&1; then
               echo "Health check passed!"
               echo "Deployment successful!"
-              echo "API: http://${{ env.EC2_HOST }}/api/"
-              echo "Swagger: http://${{ env.EC2_HOST }}/api-docs"
+              echo "API: https://${{ env.EC2_HOST }}/api/"
+              echo "Swagger: https://${{ env.EC2_HOST }}/api-docs"
               exit 0
             fi
 
@@ -164,8 +168,8 @@ jobs:
         run: |
           if [ "${{ job.status }}" == "success" ]; then
             echo "Deployment successful!"
-            echo "API: http://${{ env.EC2_HOST }}/api/"
-            echo "Swagger: http://${{ env.EC2_HOST }}/api-docs"
+            echo "API: https://${{ env.EC2_HOST }}/api/"
+            echo "Swagger: https://${{ env.EC2_HOST }}/api-docs"
           else
             echo "Deployment failed. Check logs above."
           fi
