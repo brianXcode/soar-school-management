@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5111:5111"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/school-management
+      - REDIS_URI=redis://redis:6379
+      - CORTEX_REDIS=redis://redis:6379
+      - OYSTER_REDIS=redis://redis:6379
+      - CACHE_REDIS=redis://redis:6379
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  redis_data:

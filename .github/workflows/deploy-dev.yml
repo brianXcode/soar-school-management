@@ -1,0 +1,153 @@
+name: Deploy to AWS EC2 Development
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ${{ secrets.EC2_USER }}
+
+jobs:
+  deploy:
+    name: Deploy to AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup SSH key
+        run: |
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Add EC2 to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy files to EC2
+        run: |
+          # Create tarball of application (exclude .git and node_modules)
+          tar --exclude='.git' --exclude='node_modules' --exclude='*.pem' -czf app.tar.gz .
+
+          # Copy to EC2
+          scp -i private_key.pem app.tar.gz ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/
+
+          # Extract on EC2
+          ssh -i private_key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+            # Create app directory if not exists
+            mkdir -p ~/soar-school-management
+
+            # Extract files
+            cd ~/soar-school-management
+            tar -xzf /tmp/app.tar.gz
+            rm /tmp/app.tar.gz
+
+            echo "Files copied successfully"
+          ENDSSH
+
+      - name: Configure environment and deploy
+        run: |
+          ssh -i private_key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+            cd ~/soar-school-management
+
+            # Create .env file with secrets
+            cat > .env << 'EOF'
+          SERVICE_NAME=school-management
+          ENV=development
+          USER_PORT=5111
+          ADMIN_PORT=5222
+
+          # Redis
+          REDIS_URI=redis://redis:6379
+          CORTEX_REDIS=redis://redis:6379
+          CORTEX_PREFIX=school
+          CORTEX_TYPE=school-management
+          OYSTER_REDIS=redis://redis:6379
+          OYSTER_PREFIX=school
+          CACHE_REDIS=redis://redis:6379
+          CACHE_PREFIX=school:ch
+
+          # MongoDB
+          MONGO_URI=mongodb://mongo:27017/school-management
+
+          # Secrets
+          LONG_TOKEN_SECRET=${{ secrets.LONG_TOKEN_SECRET }}
+          SHORT_TOKEN_SECRET=${{ secrets.SHORT_TOKEN_SECRET }}
+          NACL_SECRET=${{ secrets.NACL_SECRET }}
+
+          # Logging
+          LOG_LEVEL=info
+          EOF
+
+            # Stop existing containers
+            docker-compose down || true
+
+            # Build and start new containers
+            docker-compose up --build -d
+
+            # Wait for services to start
+            echo "Waiting for services to start..."
+            sleep 10
+
+            # Show status
+            docker-compose ps
+
+            # Show recent logs
+            echo "Recent application logs:"
+            docker-compose logs --tail=50 app
+          ENDSSH
+
+      - name: Health check
+        run: |
+          echo "Performing health check..."
+
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+
+            if curl -f -s http://${{ env.EC2_HOST }}:5111/health > /dev/null 2>&1; then
+              echo "Health check passed!"
+              echo "Deployment successful!"
+              echo "API: http://${{ env.EC2_HOST }}:5111/api/"
+              echo "Swagger: http://${{ env.EC2_HOST }}:5111/api-docs"
+              exit 0
+            fi
+
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            sleep 5
+          done
+
+          echo "Health check failed after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f private_key.pem app.tar.gz
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "Deployment successful!"
+            echo "API: http://${{ env.EC2_HOST }}:5111/api/"
+            echo "Swagger: http://${{ env.EC2_HOST }}:5111/api-docs"
+          else
+            echo "Deployment failed. Check logs above."
+          fi
