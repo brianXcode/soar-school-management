@@ -109,6 +109,9 @@ jobs:
 
           # Logging
           LOG_LEVEL=info
+
+          # Swagger / API base URL
+          DEPLOY_URL=http://${{ env.EC2_HOST }}:443
           EOF
 
             # Stop existing containers

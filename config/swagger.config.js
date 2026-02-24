@@ -9,16 +9,20 @@ module.exports = {
                 name: 'API Support',
             },
         },
-        servers: [
-            ...(process.env.DEPLOY_URL ? [{
-                url: process.env.DEPLOY_URL,
-                description: 'Production server',
-            }] : []),
-            {
+        servers: (function() {
+            const servers = [];
+            if (process.env.DEPLOY_URL) {
+                servers.push({
+                    url: process.env.DEPLOY_URL,
+                    description: 'Deployed server',
+                });
+            }
+            servers.push({
                 url: `http://localhost:${process.env.USER_PORT || 5111}`,
-                description: 'Development server',
-            },
-        ],
+                description: 'Local development server',
+            });
+            return servers;
+        })(),
         components: {
             securitySchemes: {
                 bearerAuth: {

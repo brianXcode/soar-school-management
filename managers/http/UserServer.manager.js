@@ -18,8 +18,23 @@ module.exports = class UserServer {
 
     /** server configs */
     run(){
-        /** Security headers */
-        app.use(helmet());
+        /** Security headers - CSP relaxed to allow Swagger UI */
+        app.use(helmet({
+            contentSecurityPolicy: {
+                directives: {
+                    defaultSrc:     ["'self'"],
+                    scriptSrc:      ["'self'", "'unsafe-inline'"],
+                    scriptSrcAttr:  ["'unsafe-inline'"],
+                    styleSrc:       ["'self'", "'unsafe-inline'", 'https:'],
+                    imgSrc:         ["'self'", 'data:', 'https:'],
+                    connectSrc:     ["'self'"],
+                    fontSrc:        ["'self'", 'https:', 'data:'],
+                    objectSrc:      ["'none'"],
+                    upgradeInsecureRequests: [],
+                },
+            },
+            crossOriginOpenerPolicy: false,
+        }));
 
         /** Gzip compression */
         app.use(compression());
