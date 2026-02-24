@@ -4,7 +4,7 @@ services:
   app:
     build: .
     ports:
-      - "5111:5111"
+      - "80:5111"
     env_file:
       - .env
     environment:

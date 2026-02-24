@@ -139,11 +139,11 @@ jobs:
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
 
-            if curl -f -s http://${{ env.EC2_HOST }}:5111/health > /dev/null 2>&1; then
+            if curl -f -s http://${{ env.EC2_HOST }}/health > /dev/null 2>&1; then
               echo "Health check passed!"
               echo "Deployment successful!"
-              echo "API: http://${{ env.EC2_HOST }}:5111/api/"
-              echo "Swagger: http://${{ env.EC2_HOST }}:5111/api-docs"
+              echo "API: http://${{ env.EC2_HOST }}/api/"
+              echo "Swagger: http://${{ env.EC2_HOST }}/api-docs"
               exit 0
             fi
 
@@ -164,8 +164,8 @@ jobs:
         run: |
           if [ "${{ job.status }}" == "success" ]; then
             echo "Deployment successful!"
-            echo "API: http://${{ env.EC2_HOST }}:5111/api/"
-            echo "Swagger: http://${{ env.EC2_HOST }}:5111/api-docs"
+            echo "API: http://${{ env.EC2_HOST }}/api/"
+            echo "Swagger: http://${{ env.EC2_HOST }}/api-docs"
           else
             echo "Deployment failed. Check logs above."
           fi
