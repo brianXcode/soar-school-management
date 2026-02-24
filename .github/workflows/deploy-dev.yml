@@ -34,14 +34,29 @@ jobs:
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
 
+          # Verify key format
+          echo "Checking SSH key format..."
+          head -n 1 private_key.pem
+
       - name: Add EC2 to known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts 2>&1 || echo "Warning: ssh-keyscan failed, continuing anyway"
+
+      - name: Test SSH connection
+        run: |
+          echo "Testing SSH connection to ${{ env.EC2_HOST }}..."
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "echo 'SSH connection successful'" || {
+            echo "SSH connection failed. Checking details..."
+            echo "Host: ${{ env.EC2_HOST }}"
+            echo "User: ${{ env.EC2_USER }}"
+            exit 1
+          }
 
       - name: Copy files to EC2
         run: |
           # Create tarball of application (exclude .git and node_modules)
+          echo "Creating application archive..."
           tar --exclude='.git' \
               --exclude='node_modules' \
               --exclude='*.pem' \
@@ -50,11 +65,24 @@ jobs:
               --warning=no-file-changed \
               -czf app.tar.gz .
 
+          echo "Archive created: $(ls -lh app.tar.gz)"
+
           # Copy to EC2
-          scp -i private_key.pem app.tar.gz ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/
+          echo "Copying archive to EC2..."
+          scp -i private_key.pem \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=30 \
+              app.tar.gz ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/tmp/
 
           # Extract on EC2
-          ssh -i private_key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+          echo "Extracting files on EC2..."
+          ssh -i private_key.pem \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=30 \
+              ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+            set -e
             # Create app directory if not exists
             mkdir -p ~/soar-school-management
 
@@ -68,7 +96,13 @@ jobs:
 
       - name: Configure environment and deploy
         run: |
-          ssh -i private_key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+          echo "Configuring environment and deploying..."
+          ssh -i private_key.pem \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=30 \
+              ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+            set -e
             cd ~/soar-school-management
 
             # Create .env file with secrets
